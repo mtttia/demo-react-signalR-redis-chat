@@ -1,0 +1,27 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Aspire", "Aspire\Aspire.csproj", "{3B863FFB-9E56-4B25-8422-D4664B268267}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AspNetServer", "AspNetServer\AspNetServer.csproj", "{EA9BDFCB-EFD0-4FB8-9AAE-C7B58F7523CC}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{6E840E69-57C9-436E-AC95-C3FB13BFB80B}"
+	ProjectSection(SolutionItems) = preProject
+		compose.yaml = compose.yaml
+	EndProjectSection
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{3B863FFB-9E56-4B25-8422-D4664B268267}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{3B863FFB-9E56-4B25-8422-D4664B268267}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{3B863FFB-9E56-4B25-8422-D4664B268267}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{3B863FFB-9E56-4B25-8422-D4664B268267}.Release|Any CPU.Build.0 = Release|Any CPU
+		{EA9BDFCB-EFD0-4FB8-9AAE-C7B58F7523CC}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{EA9BDFCB-EFD0-4FB8-9AAE-C7B58F7523CC}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{EA9BDFCB-EFD0-4FB8-9AAE-C7B58F7523CC}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{EA9BDFCB-EFD0-4FB8-9AAE-C7B58F7523CC}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+EndGlobal

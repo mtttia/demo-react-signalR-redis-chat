@@ -1,0 +1,7 @@
+﻿services:
+  aspnetserver:
+    image: aspnetserver
+    build:
+      context: .
+      dockerfile: AspNetServer/Dockerfile
+

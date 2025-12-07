@@ -1,0 +1,21 @@
+<Project Sdk="Aspire.AppHost.Sdk/13.0.2">
+
+    <PropertyGroup>
+        <OutputType>Exe</OutputType>
+        <TargetFramework>net10.0</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+        <UserSecretsId>0cc9063c-4598-4b08-b884-2ba6ef521796</UserSecretsId>
+        <RootNamespace>ReactSignalRRedisChat</RootNamespace>
+    </PropertyGroup>
+
+    <ItemGroup>
+      <PackageReference Include="Aspire.Hosting.NodeJs" Version="9.5.2" />
+      <PackageReference Include="Aspire.Hosting.Redis" Version="13.0.2" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <ProjectReference Include="..\AspNetServer\AspNetServer.csproj" />
+    </ItemGroup>
+
+</Project>
