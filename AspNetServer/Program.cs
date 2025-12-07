@@ -1,12 +1,24 @@
 using AspNetServer.Hubs;
+using StackExchange.Redis;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
 
 var redisConnection = builder.Configuration.GetConnectionString("redis");
+
+if (string.IsNullOrWhiteSpace(redisConnection))
+{
+    throw new InvalidOperationException("Redis connection string named 'redis' is not configured.");
+}
+
+builder.Services.AddSingleton<IConnectionMultiplexer>(sp =>
+{
+    var options = ConfigurationOptions.Parse(redisConnection, true);
+    options.AbortOnConnectFail = false;
+    return ConnectionMultiplexer.Connect(options);
+});
 
 builder.Services.AddSignalR()
     .AddStackExchangeRedis(redisConnection!, options =>
@@ -18,10 +30,10 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("SignalRPolicy", policy =>
     {
-        policy.SetIsOriginAllowed(_ => true) // Allow any origin (dev only)
+        policy.SetIsOriginAllowed(_ => true) 
             .AllowAnyMethod()
             .AllowAnyHeader()
-            .AllowCredentials(); // Required for SignalR
+            .AllowCredentials(); 
     });
 });
 

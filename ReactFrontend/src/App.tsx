@@ -1,104 +1,132 @@
-import {useEffect, useState} from "react";
+import {useEffect, useState, useRef} from "react";
 import * as signalR from "@microsoft/signalr";
+
+interface ChatMessage {
+    id: number;
+    user: string;
+    text: string;
+}
 
 function App() {
     const [connection, setConnection] = useState<signalR.HubConnection | null>(null);
-    const [messages, setMessages] = useState<string[]>([]);
+    const [messages, setMessages] = useState<ChatMessage[]>([]);
 
+    // State
     const [user, setUser] = useState("");
     const [room, setRoom] = useState("");
     const [joinedRoom, setJoinedRoom] = useState("");
     const [message, setMessage] = useState("");
 
+    // Tracking the last ID for Sync (Use Ref to access inside closures/callbacks)
+    const lastIdRef = useRef<number>(0);
+
     useEffect(() => {
         const apiUrl = import.meta.env.VITE_API_URL;
 
         const newConnection = new signalR.HubConnectionBuilder()
-            .withUrl(`${apiUrl}/chathub`, {})
-            .withAutomaticReconnect([0, 2000, 10000, 10000, 10000, 10000])
+            .withUrl(`${apiUrl}/chathub`, {
+                skipNegotiation: true,
+                transport: signalR.HttpTransportType.WebSockets,
+            })
+            .withAutomaticReconnect()
             .build();
 
-        newConnection.onreconnecting((error) => {
-            console.log(`Connessione persa, tentativo di riconnessione...`, error);
+        // 1. Real-time Message Handler
+        newConnection.on("ReceiveMessage", (msg: ChatMessage) => {
+            setMessages((prev) => {
+                // Avoid duplicates if weird race conditions happen
+                if (prev.some((m) => m.id === msg.id && msg.id !== 0)) return prev;
+                return [...prev, msg];
+            });
+
+            // Update cursor only for real user messages (id > 0)
+            if (msg.id > 0) {
+                lastIdRef.current = msg.id;
+            }
         });
 
-        newConnection.onreconnected((connectionId) => {
-            console.log(`Riconnesso! Nuovo Connection ID: ${connectionId}`);
+        // 2. History Sync Handler (Batch insert)
+        newConnection.on("LoadHistory", (missedMessages: ChatMessage[]) => {
+            console.log(`Syncing ${missedMessages.length} missed messages...`);
+            setMessages((prev) => {
+                // Merge and Sort
+                const combined = [...prev, ...missedMessages];
+                // Remove duplicates by ID
+                const unique = Array.from(new Map(combined.map((m) => [m.id, m])).values());
+                return unique.sort((a, b) => a.id - b.id);
+            });
+
+            // Update cursor to the latest
+            if (missedMessages.length > 0) {
+                const maxId = Math.max(...missedMessages.map((m) => m.id));
+                if (maxId > lastIdRef.current) lastIdRef.current = maxId;
+            }
+        });
+
+        // 3. Reconnection Logic
+        newConnection.onreconnected(() => {
+            console.log("Reconnected! Syncing...");
             if (joinedRoom) {
-                newConnection.invoke("JoinRoom", joinedRoom).catch(console.error);
+                // Pass the Last ID we have to fill the gap
+                newConnection.invoke("JoinRoom", joinedRoom, lastIdRef.current).catch(console.error);
             }
         });
 
         setConnection(newConnection);
-    }, []);
+    }, [joinedRoom]); // Re-create listener if room changes (optional optimization)
 
     useEffect(() => {
-        if (connection) {
+        if (connection && connection.state === signalR.HubConnectionState.Disconnected) {
             connection
                 .start()
-                .then(() => {
-                    console.log("Connected!");
-                    connection.off("ReceiveMessage");
-                    connection.on("ReceiveMessage", (user, msg) => {
-                        setMessages((prev) => [...prev, `${user}: ${msg}`]);
-                    });
-                })
-                .catch((e) => console.error("Connection failed: ", e));
+                .then(() => console.log("Connected!"))
+                .catch(console.error);
         }
     }, [connection]);
 
     const joinRoom = async () => {
         if (connection && room) {
-            try {
-                await connection.invoke("JoinRoom", room);
-                setJoinedRoom(room);
-                setMessages([]);
-            } catch (e) {
-                console.error("Join failed: ", e);
-            }
+            // Reset state for new room
+            setMessages([]);
+            lastIdRef.current = 0;
+
+            await connection.invoke("JoinRoom", room, 0);
+            setJoinedRoom(room);
         }
     };
 
     const sendMessage = async () => {
         if (connection && message && user && joinedRoom) {
-            try {
-                await connection.invoke("SendMessageToRoom", joinedRoom, user, message);
-                setMessage("");
-            } catch (e) {
-                console.error("Send failed: ", e);
-            }
+            await connection.invoke("SendMessageToRoom", joinedRoom, user, message);
+            setMessage("");
         }
     };
 
     return (
         <div style={{padding: "20px"}}>
-            <h1>Distributed SignalR Chat</h1>
-
+            <h1>Distributed Chat (Delta Sync)</h1>
             {!joinedRoom ? (
                 <div>
-                    <input placeholder="Enter Room Name" value={room} onChange={(e) => setRoom(e.target.value)} />
-                    <button onClick={joinRoom}>Join Room</button>
+                    <input placeholder="Room" value={room} onChange={(e) => setRoom(e.target.value)} />
+                    <button onClick={joinRoom}>Join</button>
                 </div>
             ) : (
                 <div>
                     <h3>Room: {joinedRoom}</h3>
-                    <div style={{marginBottom: "10px"}}>
-                        <input placeholder="User Name" value={user} onChange={(e) => setUser(e.target.value)} style={{marginRight: "10px"}} />
-                        <input
-                            placeholder="Message"
-                            value={message}
-                            onChange={(e) => setMessage(e.target.value)}
-                            onKeyDown={(e) => e.key === "Enter" && sendMessage()}
-                        />
-                        <button onClick={sendMessage}>Send</button>
-                        <button onClick={() => setJoinedRoom("")} style={{marginLeft: "10px"}}>
-                            Leave
-                        </button>
-                    </div>
+                    <input placeholder="User" value={user} onChange={(e) => setUser(e.target.value)} />
+                    <input
+                        placeholder="Msg"
+                        value={message}
+                        onChange={(e) => setMessage(e.target.value)}
+                        onKeyDown={(e) => e.key === "Enter" && sendMessage()}
+                    />
+                    <button onClick={sendMessage}>Send</button>
                     <hr />
                     <ul>
                         {messages.map((m, i) => (
-                            <li key={i}>{m}</li>
+                            <li key={m.id || i}>
+                                <b>{m.user}:</b> {m.text} <small style={{fontSize: "0.8em", color: "#999"}}>({m.id})</small>
+                            </li>
                         ))}
                     </ul>
                 </div>
